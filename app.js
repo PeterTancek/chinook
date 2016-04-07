@@ -5,11 +5,13 @@ if (!process.env.PORT)
 var sqlite3 = require('sqlite3').verbose();
 var db = new sqlite3.Database('chinook.sl3');
 
+var itemsPerPage = 20;
+
 /* calls callback with specified page's artists and artist's details */
 var artists = function(page, artist, details, callback) {
   db.all("SELECT Artist.ArtistId, Name, StarsNo " +
     "FROM Artist, Stars WHERE Artist.ArtistId = Stars.ArtistId " +
-    "ORDER BY Name LIMIT 33 OFFSET ($page - 1) * 33",
+    "ORDER BY Name LIMIT 20 OFFSET ($page - 1) * 20",
     {$page: page}, function(error, rows) {
       if (error) {
         console.log(error);
@@ -18,7 +20,7 @@ var artists = function(page, artist, details, callback) {
         var result = '<div id="artists">';
         for (var i = 0; i < rows.length; i++) {
           var selected = rows[i].ArtistId == artist;
-          result += '<div id="' + rows[i].ArtistId + '"><span class="numbers">' + (page * 33 + i - 32) + '.</span>' +
+          result += '<div id="' + rows[i].ArtistId + '"><span class="numbers">' + (page * 20 + i - 19) + '.</span>' +
             '<a href="/artists/' + page + (!selected? '/details/' + rows[i].ArtistId: '') + '#' + rows[i].ArtistId + '">' +
             '<button type="button" class="btn btn-default' + (selected? ' selected': '') + '">' +
             rows[i].Name + '</button></a><span class="stars">';
@@ -93,9 +95,16 @@ var genres = function(artist, callback) {
         console.log(error);
         callback('<strong>Something went wrong!</strong>');
       } else {
-        var result = '<h5>Genres</h5><div id="genres">' + 
-          'No genres for this artist' + 
-          '</div>';
+        var result = '<h5>Genres</h5><div id="genres">';
+        if(rows.length == 0){
+          result += 'No genres for this artist';
+        }
+        else{
+          for(var i=0; i<rows.length; i++){
+            result += (i > 0 ? ' | ' : '') + rows[i].Name;
+          }
+        }
+        result += '</div>';
         callback(result);
       }
   });
@@ -107,7 +116,7 @@ var app = express();
 
 /* settings for static application files */
 app.use(express.static('public'));
-app.set('view engine', 'ejs');
+app.set('view engine', 'ejs');+
 
 /* responds with first page's artists */
 app.get('/artists', function(request, response) {
@@ -154,6 +163,10 @@ app.get('/album/:album', function(request, response) {
   });
 });
 
+app.get('/', function(request, response) {
+  response.redirect('/artists/1');
+});
+
 /* responds with specified playlist's details */
 app.get('/playlist/:playlist', function(request, response) {
   db.get("SELECT COUNT(*) AS Tracks, COUNT(DISTINCT ArtistId) AS Artists, " +
@@ -191,4 +204,6 @@ app.get('/pages', function(request, response) {
   });
 });
 
-
+app.listen(process.env.PORT, function() {
+  console.log("Strežnik je zagnan.");
+});
